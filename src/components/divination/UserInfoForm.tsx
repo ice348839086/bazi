@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, FormEvent } from 'react'
+import { useState, useRef, FormEvent } from 'react'
 import { Calendar, User, Clock, MapPin, Sparkles } from 'lucide-react'
 import { Button, Input, Select, Card, CardHeader, CardTitle, CardContent } from '@/components/ui'
 import { SHI_CHEN_LIST } from '@/lib/bazi'
@@ -24,6 +24,8 @@ export function UserInfoForm({ onSubmit, isLoading }: UserInfoFormProps) {
   const updateFormData = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }))
   }
+
+  const dateInputRef = useRef<HTMLInputElement>(null)
 
   const [errors, setErrors] = useState<Record<string, string>>({})
 
@@ -106,6 +108,7 @@ export function UserInfoForm({ onSubmit, isLoading }: UserInfoFormProps) {
               onChange={(e) => updateFormData('name', e.target.value)}
               error={errors.name}
               className="pl-12"
+              maxLength={20}
             />
           </div>
 
@@ -126,11 +129,15 @@ export function UserInfoForm({ onSubmit, isLoading }: UserInfoFormProps) {
               <Calendar className="w-5 h-5" />
             </div>
             <Input
+              ref={dateInputRef}
               id="birthDate"
               type="date"
               label="出生日期（公历）"
               value={formData.birthDate}
               onChange={(e) => updateFormData('birthDate', e.target.value)}
+              onClick={() => {
+                try { dateInputRef.current?.showPicker() } catch { /* 浏览器不支持 showPicker */ }
+              }}
               error={errors.birthDate}
               className="pl-12"
               max={new Date().toISOString().split('T')[0]}
@@ -167,7 +174,7 @@ export function UserInfoForm({ onSubmit, isLoading }: UserInfoFormProps) {
               onChange={(e) => updateFormData('birthPlace', e.target.value)}
               className="pl-12"
             />
-            <p className="text-xs text-mystic-500 mt-1">用于真太阳时校正，可提高准确性</p>
+            <p className="text-xs text-mystic-500 mt-1">出生地功能开发中，当前版本暂未参与计算</p>
           </div>
 
           {/* 提交按钮 */}

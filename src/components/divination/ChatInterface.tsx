@@ -116,13 +116,15 @@ export function ChatInterface({
     const allAnswered = currentQuestions.every((q) => selectedAnswers[q.id])
     if (!allAnswered) return
 
-    // 构建答案对象，包含问题文本和选项文本
+    // 构建答案对象，使用 question.id 作为 key 避免重复问题冲突
     const answers: Record<string, string> = {}
     currentQuestions.forEach((q) => {
       const selectedOptionId = selectedAnswers[q.id]
       const selectedOption = q.options.find((opt) => opt.id === selectedOptionId)
       if (selectedOption) {
-        answers[q.question] = selectedOption.text
+        // 使用 "id::question" 格式作为 key，确保唯一性
+        const key = `${q.id}::${q.question}`
+        answers[key] = selectedOption.text
       }
     })
 

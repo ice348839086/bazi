@@ -6,6 +6,7 @@ import { Button, Card, CardHeader, CardTitle, CardContent } from '@/components/u
 import type { FortuneReport } from '@/types'
 
 interface ChatMessage {
+  id: string
   role: 'user' | 'assistant'
   content: string
 }
@@ -42,7 +43,7 @@ function AnalysisSection({ icon, title, content, color }: AnalysisSectionProps) 
           {title}
         </h3>
       </div>
-      <div className="pl-13 text-mystic-300 leading-relaxed whitespace-pre-wrap">
+      <div className="pl-[52px] text-mystic-300 leading-relaxed whitespace-pre-wrap">
         {content}
       </div>
     </div>
@@ -56,7 +57,17 @@ export function ReportDisplay({ report, qaHistory = [], onRestart }: ReportDispl
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([])
   const [inputValue, setInputValue] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  const [lastFailedQuestion, setLastFailedQuestion] = useState<string | null>(null)
   const chatEndRef = useRef<HTMLDivElement>(null)
+  const abortRef = useRef<AbortController | null>(null)
+  const msgIdCounter = useRef(0)
+
+  // 组件卸载时取消请求
+  useEffect(() => {
+    return () => {
+      abortRef.current?.abort()
+    }
+  }, [])
 
   // 自动滚动到最新消息
   useEffect(() => {
@@ -72,9 +83,21 @@ export function ReportDisplay({ report, qaHistory = [], onRestart }: ReportDispl
     const userMessage = inputValue.trim()
     setInputValue('')
 
-    // 添加用户消息
-    setChatMessages(prev => [...prev, { role: 'user', content: userMessage }])
+    msgIdCounter.current++
+    const userChatMsg: ChatMessage = { id: `user_${msgIdCounter.current}`, role: 'user', content: userMessage }
+
+    // 先构建包含当前用户消息的完整历史（避免 setState 异步导致传参缺失）
+    const updatedHistory = [...chatMessages, userChatMsg]
+
+    // 添加用户消息到 UI
+    setChatMessages(updatedHistory)
     setIsLoading(true)
+    setLastFailedQuestion(null)
+
+    // 取消上一个未完成的请求
+    abortRef.current?.abort()
+    const controller = new AbortController()
+    abortRef.current = controller
 
     try {
       const response = await fetch('/api/analyze', {
@@ -85,27 +108,66 @@ export function ReportDisplay({ report, qaHistory = [], onRestart }: ReportDispl
           mingPan,
           qaHistory,
           reportSummary: summary,
-          chatHistory: chatMessages,
+          chatHistory: updatedHistory,
           userQuestion: userMessage,
         }),
+        signal: controller.signal,
       })
 
       if (!response.ok) {
-        throw new Error('请求失败')
+        // 尝试读取 API 返回的错误信息
+        let errorMsg = '请求失败'
+        try {
+          const errData = await response.json()
+          if (errData.error) errorMsg = errData.error
+        } catch {
+          // 无法解析 JSON，使用默认消息
+        }
+        throw new Error(errorMsg)
       }
 
       const data = await response.json()
 
       // 添加AI回复
-      setChatMessages(prev => [...prev, { role: 'assistant', content: data.reply }])
+      msgIdCounter.current++
+      setChatMessages(prev => [...prev, { id: `ai_${msgIdCounter.current}`, role: 'assistant', content: data.reply }])
     } catch (error) {
+      // 忽略 abort 错误
+      if (error instanceof Error && error.name === 'AbortError') return
+      const failMsg = error instanceof Error ? error.message : '抱歉，回答时遇到了问题，请稍后重试。'
+      msgIdCounter.current++
       setChatMessages(prev => [...prev, {
+        id: `err_${msgIdCounter.current}`,
         role: 'assistant',
-        content: '抱歉，回答时遇到了问题，请稍后重试。'
+        content: `⚠️ ${failMsg}`,
       }])
+      setLastFailedQuestion(userMessage)
     } finally {
       setIsLoading(false)
     }
+  }
+
+  // 重试失败的聊天消息
+  const handleRetryChat = () => {
+    if (!lastFailedQuestion) return
+    // 一次性移除末尾的错误消息和对应的用户消息
+    setChatMessages(prev => {
+      let msgs = [...prev]
+      // 移除最后一条错误消息
+      const last = msgs[msgs.length - 1]
+      if (last && last.role === 'assistant' && last.content.startsWith('⚠️')) {
+        msgs = msgs.slice(0, -1)
+      }
+      // 移除对应的用户消息
+      const lastUser = msgs[msgs.length - 1]
+      if (lastUser && lastUser.role === 'user' && lastUser.content === lastFailedQuestion) {
+        msgs = msgs.slice(0, -1)
+      }
+      return msgs
+    })
+    // 重新填入输入框并清除失败状态
+    setInputValue(lastFailedQuestion)
+    setLastFailedQuestion(null)
   }
 
   // 处理回车发送
@@ -255,9 +317,9 @@ ${advice.map((a, i) => `${i + 1}. ${a}`).join('\n')}
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {keyYears.map((ky, index) => (
+              {keyYears.map((ky) => (
                 <div
-                  key={index}
+                  key={`year_${ky.year}`}
                   className="p-4 rounded-lg bg-dark-900/50 border border-mystic-800/50"
                 >
                   <div className="flex items-start gap-3">
@@ -333,9 +395,9 @@ ${advice.map((a, i) => `${i + 1}. ${a}`).join('\n')}
           {/* 对话消息列表 */}
           {chatMessages.length > 0 && (
             <div className="mb-4 max-h-96 overflow-y-auto space-y-4 p-4 rounded-lg bg-dark-900/50 border border-mystic-800/50">
-              {chatMessages.map((msg, index) => (
+              {chatMessages.map((msg) => (
                 <div
-                  key={index}
+                  key={msg.id}
                   className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
                 >
                   <div
@@ -354,6 +416,17 @@ ${advice.map((a, i) => `${i + 1}. ${a}`).join('\n')}
                   </div>
                 </div>
               ))}
+              {/* 重试按钮：最后一条是错误消息时显示 */}
+              {lastFailedQuestion && !isLoading && (
+                <div className="flex justify-center">
+                  <button
+                    onClick={handleRetryChat}
+                    className="text-sm px-4 py-1.5 rounded-lg bg-gold-500/20 text-gold-400 hover:bg-gold-500/30 border border-gold-500/30 transition-colors font-medium"
+                  >
+                    重新发送
+                  </button>
+                </div>
+              )}
               {isLoading && (
                 <div className="flex justify-start">
                   <div className="bg-mystic-800/50 border border-mystic-700/50 p-3 rounded-lg">
@@ -374,7 +447,7 @@ ${advice.map((a, i) => `${i + 1}. ${a}`).join('\n')}
               type="text"
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
-              onKeyPress={handleKeyPress}
+              onKeyDown={handleKeyPress}
               placeholder="请输入您想请教的问题..."
               disabled={isLoading}
               className="flex-1 px-4 py-3 rounded-lg bg-dark-900 border border-mystic-700 text-mystic-100 placeholder-mystic-500 focus:outline-none focus:border-gold-500/50 focus:ring-1 focus:ring-gold-500/30 disabled:opacity-50"

@@ -89,10 +89,31 @@ function formatBaZiString(baZi: BaZi): string {
   ].join(' ')
 }
 
+// 有效时辰列表（用于校验）
+const VALID_SHI_CHEN = new Set(['子', '丑', '寅', '卯', '辰', '巳', '午', '未', '申', '酉', '戌', '亥'])
+
 // 计算八字命盘
 export function calculateMingPan(userInfo: UserInfo): MingPan {
-  // 解析出生日期
+  // 输入校验
+  const dateRegex = /^\d{4}-\d{2}-\d{2}$/
+  if (!dateRegex.test(userInfo.birthDate)) {
+    throw new Error('出生日期格式不正确，请使用 YYYY-MM-DD 格式（如：1990-05-15）')
+  }
   const [year, month, day] = userInfo.birthDate.split('-').map(Number)
+  if (year < 1900 || year > 2100) {
+    throw new Error('出生年份需在 1900 年至 2100 年之间')
+  }
+  if (month < 1 || month > 12) {
+    throw new Error('出生月份需在 1 至 12 之间')
+  }
+  if (day < 1 || day > 31) {
+    throw new Error('出生日期需在 1 至 31 之间')
+  }
+  if (!VALID_SHI_CHEN.has(userInfo.birthTime)) {
+    throw new Error('出生时辰无效，请选择子、丑、寅、卯、辰、巳、午、未、申、酉、戌、亥中的一项')
+  }
+
+  // 解析出生日期
   const hour = shiChenToHour(userInfo.birthTime)
 
   // 使用 lunar-javascript 创建公历日期

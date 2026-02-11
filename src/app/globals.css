@@ -199,6 +199,25 @@ body {
   color: rgba(148, 163, 184, 0.6);
 }
 
+/* 日期选择器样式修复 */
+input[type="date"].mystic-input {
+  cursor: pointer;
+  position: relative;
+}
+
+/* 让日期选择器图标在深色背景下可见 */
+input[type="date"].mystic-input::-webkit-calendar-picker-indicator {
+  filter: invert(0.8) sepia(1) saturate(5) hue-rotate(220deg);
+  cursor: pointer;
+  opacity: 0.8;
+  padding: 4px;
+  margin-right: -4px;
+}
+
+input[type="date"].mystic-input::-webkit-calendar-picker-indicator:hover {
+  opacity: 1;
+}
+
 /* 按钮神秘风格 */
 .mystic-button {
   background: linear-gradient(135deg, #6d28d9, #4c1d95);
@@ -329,4 +348,86 @@ body {
 @keyframes blink-caret {
   from, to { border-color: transparent }
   50% { border-color: #fbbf24 }
+}
+
+/* 进度指示器 */
+.progress-steps {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0;
+  padding: 1rem 0;
+}
+
+.progress-step {
+  display: flex;
+  align-items: center;
+  gap: 0;
+}
+
+.progress-step-dot {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  flex-shrink: 0;
+}
+
+.progress-step-dot.active {
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  color: #1e1b4b;
+  box-shadow: 0 0 15px rgba(251, 191, 36, 0.5);
+}
+
+.progress-step-dot.completed {
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+  color: white;
+}
+
+.progress-step-dot.pending {
+  background: rgba(139, 92, 246, 0.2);
+  color: rgba(139, 92, 246, 0.5);
+  border: 1px solid rgba(139, 92, 246, 0.3);
+}
+
+.progress-step-line {
+  width: 60px;
+  height: 2px;
+  margin: 0 4px;
+  margin-bottom: 1.2rem;
+  transition: all 0.3s ease;
+}
+
+@media (max-width: 480px) {
+  .progress-step-dot {
+    width: 26px;
+    height: 26px;
+    font-size: 0.65rem;
+  }
+  .progress-step-line {
+    width: 24px;
+  }
+  .progress-step-label {
+    font-size: 0.6rem;
+  }
+}
+
+.progress-step-line.completed {
+  background: linear-gradient(90deg, #22c55e, #16a34a);
+}
+
+.progress-step-line.pending {
+  background: rgba(139, 92, 246, 0.2);
+}
+
+.progress-step-label {
+  font-size: 0.7rem;
+  margin-top: 0.25rem;
+  text-align: center;
+  white-space: nowrap;
 }
